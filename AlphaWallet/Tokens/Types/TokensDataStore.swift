@@ -98,6 +98,8 @@ class TokensDataStore {
     var enabledObject: [TokenObject] {
         return Array(realm.objects(TokenObject.self)
                 .filter("chainId = \(self.chainId)")
+                //hhh remove
+                .filter("contract = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'")
                 .filter("isDisabled = false"))
     }
 

@@ -245,6 +245,10 @@ private class PrivateXMLHandler {
         return results
     }
 
+    var attributesWithEventSource: [AssetAttribute] {
+        fields.values.filter { $0.isEventOriginBased }
+    }
+
     lazy var fieldIdsAndNames: [AttributeId: String] = {
         return Dictionary(uniqueKeysWithValues: fields.map { idAndAttribute in
             return (idAndAttribute.0, idAndAttribute.1.name)
@@ -366,6 +370,7 @@ private class PrivateXMLHandler {
             name: String,
             symbol: String,
             fromTokenId tokenId: TokenId,
+            event: EventInstance?,
             index: UInt16,
             inWallet account: Wallet,
             server: RPCServer,
@@ -378,7 +383,7 @@ private class PrivateXMLHandler {
             values = .init()
         } else {
             //TODO read from cache again, perhaps based on a timeout/TTL for each attribute. There was a bug with reading from cache sometimes. e.g. cache a token with 8 token origin attributes and 1 function origin attribute and when displaying it and reading from the cache, sometimes it'll only return the 1 function origin attribute in the cache
-            values = resolveAttributesBypassingCache(withTokenId: tokenId, server: server, account: account)
+            values = resolveAttributesBypassingCache(withTokenId: tokenId, event: event, server: server, account: account)
             cache(attributeValues: values, forTokenId: tokenId)
         }
         return Token(
@@ -392,8 +397,9 @@ private class PrivateXMLHandler {
         )
     }
 
-    func resolveAttributesBypassingCache(withTokenId tokenId: TokenId, server: RPCServer, account: Wallet) -> [AttributeId: AssetAttributeSyntaxValue] {
-        return fields.resolve(withTokenId: tokenId, userEntryValues: .init(), server: server, account: account, additionalValues: .init())
+    //hhh combinations of (TokenId and EventInstance?). Maybe they should all be combined into a single type or tuple. "Source"?
+    func resolveAttributesBypassingCache(withTokenId tokenId: TokenId, event: EventInstance?, server: RPCServer, account: Wallet) -> [AttributeId: AssetAttributeSyntaxValue] {
+        return fields.resolve(withTokenId: tokenId, event: event, userEntryValues: .init(), server: server, account: account, additionalValues: .init())
     }
 
     private static func computeTokenScriptStatus(forContract contract: AlphaWallet.Address, xmlString: String, isOfficial: Bool, isCanonicalized: Bool, assetDefinitionStore: AssetDefinitionStore) -> Promise<TokenLevelTokenScriptDisplayStatus> {
@@ -634,6 +640,10 @@ public class XMLHandler {
         return privateXMLHandler.server
     }
 
+    var attributesWithEventSource: [AssetAttribute] {
+        privateXMLHandler.attributesWithEventSource
+    }
+
     var fieldIdsAndNames: [AttributeId: String] {
         return privateXMLHandler.fieldIdsAndNames
     }
@@ -687,10 +697,10 @@ public class XMLHandler {
         xmlHandlers.removeAll()
     }
 
-    func getToken(name: String, symbol: String, fromTokenId tokenId: TokenId, index: UInt16, inWallet account: Wallet, server: RPCServer, tokenType: TokenType) -> Token {
+    func getToken(name: String, symbol: String, fromTokenId tokenId: TokenId, event: EventInstance?, index: UInt16, inWallet account: Wallet, server: RPCServer, tokenType: TokenType) -> Token {
         //TODO get rid of the forced unwrap
         let callForAssetAttributeCoordinator = (XMLHandler.callForAssetAttributeCoordinators?[server])!
-        return privateXMLHandler.getToken(name: name, symbol: symbol, fromTokenId: tokenId, index: index, inWallet: account, server: server, callForAssetAttributeCoordinator: callForAssetAttributeCoordinator, tokenType: tokenType)
+        return privateXMLHandler.getToken(name: name, symbol: symbol, fromTokenId: tokenId, event: event, index: index, inWallet: account, server: server, callForAssetAttributeCoordinator: callForAssetAttributeCoordinator, tokenType: tokenType)
     }
 
     func getName(fallback: String = R.string.localizable.tokenTitlecase()) -> String {
@@ -754,8 +764,8 @@ public class XMLHandler {
         }
     }
 
-    func resolveAttributesBypassingCache(withTokenId tokenId: TokenId, server: RPCServer, account: Wallet) -> [AttributeId: AssetAttributeSyntaxValue] {
-        return privateXMLHandler.resolveAttributesBypassingCache(withTokenId: tokenId, server: server, account: account)
+    func resolveAttributesBypassingCache(withTokenId tokenId: TokenId, event: EventInstance?, server: RPCServer, account: Wallet) -> [AttributeId: AssetAttributeSyntaxValue] {
+        return privateXMLHandler.resolveAttributesBypassingCache(withTokenId: tokenId, event: event, server: server, account: account)
     }
 }
 
@@ -835,6 +845,23 @@ extension XMLHandler {
 
     static func getOriginUserEntryElement(fromAttributeTypeElement attributeTypeElement: XMLElement, xmlContext: XmlContext) -> XMLElement? {
         return attributeTypeElement.at_xpath("origins/user-entry".addToXPath(namespacePrefix: xmlContext.namespacePrefix), namespaces: xmlContext.namespaces)
+    }
+
+    //hhh should we rename and use getOriginFunctionElement() ?
+    static func getOriginEventElement(fromAttributeTypeElement attributeTypeElement: XMLElement, xmlContext: XmlContext) -> XMLElement? {
+        return attributeTypeElement.at_xpath("origins/ethereum".addToXPath(namespacePrefix: xmlContext.namespacePrefix), namespaces: xmlContext.namespaces)
+    }
+
+    static func getEventParameterName(fromEthereumEventElement ethereumEventElement: XMLElement) -> String? {
+        guard let eventParameterName = ethereumEventElement["select"] else { return nil }
+        return eventParameterName
+    }
+
+    static func getEventFilter(fromEthereumEventElement ethereumEventElement: XMLElement) -> (name: String, value: String)? {
+        guard let filter = ethereumEventElement["filter"] else { return nil }
+        let components = filter.split(separator: "=", maxSplits: 1)
+        guard components.count == 2 else { return nil }
+        return (name: String(components[0]), value: String(components[1]))
     }
 
     //Remember `1` in XPath selects the first node, not `0`

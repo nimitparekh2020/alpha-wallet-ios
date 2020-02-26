@@ -15,6 +15,9 @@ protocol TokenInstanceWebViewDelegate: class {
 
 
 class TokenInstanceWebView: UIView {
+    //hhh remove
+    private let randomId = Int.random(in: 1...1000)
+
     //TODO see if we can be smarter about just subscribing to the attribute once. Note that this is not `Subscribable.subscribeOnce()`
     private let server: RPCServer
     private let walletAddress: AlphaWallet.Address
@@ -129,6 +132,17 @@ class TokenInstanceWebView: UIView {
         } else {
             inject(javaScript: javaScript, afterDocumentIsLoaded: true)
         }
+
+        //hhh remove
+        //let x = Double(Int.random(in: 0...10))
+        //DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+        //    NSLog("xxx inject")
+        //    if self.isStandalone {
+        //        self.inject(javaScript: javaScript, afterDocumentIsLoaded: isFirstUpdate)
+        //    } else {
+        //        self.inject(javaScript: javaScript, afterDocumentIsLoaded: true)
+        //    }
+        //}
     }
 
     private func implicitAttributes(tokenHolder: TokenHolder, isFungible: Bool) -> [String: AssetInternalValue] {
@@ -189,7 +203,6 @@ class TokenInstanceWebView: UIView {
                 return
             }
         }
-
         webView.loadHTMLString(html, baseURL: nil)
         hashOfLoadedHtml = hashOfCurrentHtml
     }

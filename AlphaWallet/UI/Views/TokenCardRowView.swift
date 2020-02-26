@@ -8,6 +8,13 @@ protocol TokenCardRowViewDelegate: class {
 }
 
 class TokenCardRowView: UIView, TokenCardRowViewProtocol {
+	//hhh remove
+	private var tagx: Int = -1
+	func foo(i: Int) {
+		tagx = i
+		tokenScriptRendererView.tag = tagx
+	}
+
     private let server: RPCServer
 	private let assetDefinitionStore: AssetDefinitionStore
 	private let tokenCountLabel = UILabel()

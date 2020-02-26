@@ -308,6 +308,8 @@ class TokensCardViewController: UIViewController, TokenVerifiableStatusViewContr
                     return rowView
                 } else {
                     let rowView = TokenCardRowView(server: .main, tokenView: .viewIconified, showCheckbox: cell.showCheckbox(), assetDefinitionStore: assetDefinitionStore)
+                    //hhh remove
+                    rowView.foo(i: 999)
                     rowView.delegate = self
                     return rowView
                 }
@@ -359,6 +361,7 @@ extension TokensCardViewController: UITableViewDelegate, UITableViewDataSource {
             createSizingCell()
         }
 
+        NSLog("xxx cell for: \((indexPath.section + 1) * 10)")
         let tokenType = OpenSeaBackedNonFungibleTokenHandling(token: tokenObject, assetDefinitionStore: assetDefinitionStore, tokenViewType: .viewIconified)
         let cell = tableView.dequeueReusableCell(withIdentifier: TokenCardTableViewCellWithCheckbox.identifier, for: indexPath) as! TokenCardTableViewCellWithCheckbox
         var rowView: TokenCardRowViewProtocol & UIView
@@ -372,6 +375,9 @@ extension TokensCardViewController: UITableViewDelegate, UITableViewDataSource {
                     return rowView
                 } else {
                     let rowView = TokenCardRowView(server: .main, tokenView: .viewIconified, showCheckbox: cell.showCheckbox(), assetDefinitionStore: assetDefinitionStore)
+                    //hhh remove
+                    rowView.foo(i: (indexPath.section + 1) * 10)
+
                     //Important not to assign a delegate because we don't use actual cells to figure out the height. We use a sizing cell instead
                     return rowView
                 }

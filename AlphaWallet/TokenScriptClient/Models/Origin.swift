@@ -38,9 +38,11 @@ enum OriginAsType: String {
 }
 
 enum Origin {
+    //hhh add `.event`? How about storage? Maybe storage of the attribute is separate and already handled like other attributes. But we have to capture attributes that are `Origin.event` and watch for those using the filter? And when the events fire (we add a new token ID or lose a token ID), so have to store the entire list of events locally. Also handle when we get the historical event list the first time and everytime app launch/resumes (to catch up)
     case tokenId(TokenIdOrigin)
     case function(FunctionOrigin)
     case userEntry(UserEntryOrigin)
+    case event(EventOrigin)
 
     private var originElement: XMLElement {
         switch self {
@@ -49,6 +51,8 @@ enum Origin {
         case .function(let origin):
             return origin.originElement
         case .userEntry(let origin):
+            return origin.originElement
+        case .event(let origin):
             return origin.originElement
         }
     }
@@ -60,11 +64,13 @@ enum Origin {
             return origin.xmlContext
         case .userEntry(let origin):
             return origin.xmlContext
+        case .event(let origin):
+            return origin.xmlContext
         }
     }
     var userEntryId: AttributeId? {
         switch self {
-        case .tokenId, .function:
+        case .tokenId, .function, .event:
             return nil
         case .userEntry(let origin):
             return origin.attributeId
@@ -72,7 +78,7 @@ enum Origin {
     }
     var isImmediatelyAvailable: Bool {
         switch self {
-        case .tokenId, .userEntry:
+        case .tokenId, .userEntry, .event:
             return true
         case .function:
             return false
@@ -100,6 +106,16 @@ enum Origin {
         self = .userEntry(.init(originElement: userEntryElement, xmlContext: xmlContext, attributeId: attributeId, asType: asType, bitmask: bitmask, bitShift: bitShift))
     }
 
+    //hhh why does function need attributeId and we don't need it for tokenId?
+    init?(forEthereumEventElement eventElement: XMLElement, xmlContext: XmlContext) {
+        //hhh need asType?
+        //guard let asType = eventElement["as"].flatMap({ OriginAsType(rawValue: $0) }) else { return nil }
+        //hhh populate. Maybe the entire event structure definition which is from another part of the XML file? too not needed?
+        guard let eventParameterName = XMLHandler.getEventParameterName(fromEthereumEventElement: eventElement) else { return nil }
+        guard let eventFilter = XMLHandler.getEventFilter(fromEthereumEventElement: eventElement) else { return nil }
+        self = .event(.init(originElement: eventElement, xmlContext: xmlContext, eventParameterName: eventParameterName, eventFilter: eventFilter))
+    }
+
     ///Used to truncate bits to the right of the bitmask
     private static func bitShiftCount(forBitMask bitmask: BigUInt) -> Int {
         var count = 0
@@ -109,7 +125,9 @@ enum Origin {
         return count - 1
     }
 
-    func extractValue(fromTokenId tokenId: TokenId, inWallet account: Wallet, server: RPCServer, callForAssetAttributeCoordinator: CallForAssetAttributeCoordinator, userEntryValues: [AttributeId: String], tokenLevelNonSubscribableAttributesAndValues: [AttributeId: AssetInternalValue]) -> AssetInternalValue? {
+    //hhh make event: non-default (but still optional) and fix callers
+    //hhhhhh caller has to know which event (instances) to pass in. Including using `filter` and `event` to check
+    func extractValue(fromTokenId tokenId: TokenId, inWallet account: Wallet, server: RPCServer, callForAssetAttributeCoordinator: CallForAssetAttributeCoordinator, event: EventInstance? = nil, userEntryValues: [AttributeId: String], tokenLevelNonSubscribableAttributesAndValues: [AttributeId: AssetInternalValue]) -> AssetInternalValue? {
         switch self {
         case .tokenId(let origin):
             return origin.extractValue(fromTokenId: tokenId)
@@ -119,6 +137,12 @@ enum Origin {
         case .userEntry(let origin):
             guard let input = userEntryValues[origin.attributeId] else { return nil }
             return origin.extractValue(fromUserEntry: input)
+        case .event(let origin):
+            if let event = event {
+                return origin.extractValue(fromEvent: event)
+            } else {
+                return nil
+            }
         }
     }
 

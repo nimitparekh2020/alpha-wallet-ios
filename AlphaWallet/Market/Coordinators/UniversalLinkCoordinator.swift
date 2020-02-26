@@ -500,7 +500,8 @@ class UniversalLinkCoordinator: Coordinator {
         for i in 0..<bytes32Tokens.count {
             let token = bytes32Tokens[i]
             if let tokenId = BigUInt(token.drop0x, radix: 16) {
-                let token = xmlHandler.getToken(name: name, symbol: symbol, fromTokenId: tokenId, index: UInt16(i), inWallet: account, server: server, tokenType: tokenType)
+                //hhh event is nil because we are importing from a magic link
+                let token = xmlHandler.getToken(name: name, symbol: symbol, fromTokenId: tokenId, event: nil, index: UInt16(i), inWallet: account, server: server, tokenType: tokenType)
                 tokens.append(token)
             }
         }

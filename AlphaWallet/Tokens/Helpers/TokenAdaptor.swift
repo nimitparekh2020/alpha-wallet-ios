@@ -43,7 +43,8 @@ class TokenAdaptor {
             guard isNonZeroBalance(id) else { continue }
             if let tokenInt = BigUInt(id.drop0x, radix: 16) {
                 let server = self.token.server
-                let token = getToken(name: self.token.name, symbol: self.token.symbol, for: tokenInt, index: UInt16(index), inWallet: account, server: server)
+                //TODO Event support, if/when designed, for non-OpenSea. Probably need `distinct` or something to that effect
+                let token = getToken(name: self.token.name, symbol: self.token.symbol, for: tokenInt, event: nil, index: UInt16(index), inWallet: account, server: server)
                 tokens.append(token)
             }
         }
@@ -138,14 +139,43 @@ class TokenAdaptor {
     }
 
     //TODO pass lang into here
-    private func getToken(name: String, symbol: String, for id: BigUInt, index: UInt16, inWallet account: Wallet, server: RPCServer) -> Token {
-        return XMLHandler(contract: token.contractAddress, assetDefinitionStore: assetDefinitionStore).getToken(name: name, symbol: symbol, fromTokenId: id, index: index, inWallet: account, server: server, tokenType: token.type)
+    private func getToken(name: String, symbol: String, for id: BigUInt, event: EventInstance?, index: UInt16, inWallet account: Wallet, server: RPCServer) -> Token {
+        return XMLHandler(contract: token.contractAddress, assetDefinitionStore: assetDefinitionStore).getToken(name: name, symbol: symbol, fromTokenId: id, event: event, index: index, inWallet: account, server: server, tokenType: token.type)
     }
 
     private func getTokenForOpenSeaNonFungible(forJSONString jsonString: String, inWallet account: Wallet, server: RPCServer) -> Token? {
         guard let data = jsonString.data(using: .utf8), let nonFungible = try? JSONDecoder().decode(OpenSeaNonFungible.self, from: data) else { return nil }
-        var values = XMLHandler(contract: token.contractAddress, assetDefinitionStore: assetDefinitionStore)
-                .resolveAttributesBypassingCache(withTokenId: BigUInt(nonFungible.tokenId) ?? BigUInt(0), server: server, account: account)
+        let xmlHandler = XMLHandler(contract: token.contractAddress, assetDefinitionStore: assetDefinitionStore)
+        let event: EventInstance?
+        let attributesWithEventSource = xmlHandler.attributesWithEventSource
+        if let attributeWithEventSource = attributesWithEventSource.first, let eventFilter = attributeWithEventSource.eventFilter {
+            //hhh clean up?
+            let filterName = eventFilter.name
+            let filterValue = eventFilter.value.replacingOccurrences(of: "${tokenId}", with: nonFungible.tokenId)
+
+            //hhhhhhhhhh look up events database using the key-value + contract address for the "controller" contract, and chain
+            //hhh remove database. Need to lookup Realm instead. We have access here?
+            let eventDatabase: [EventInstance] = [
+                //hhh we might not get the entire list of tokens from events!
+                //hhh handle when the name-value to filter is not in the event
+                //hhh handle when the data to look up is not in the event
+                .init(data: ["ensName": .string("daphane.eth"), "label": .string("21080777284947362091231703330799095409823662112294202097514940405555870681941")]),
+                .init(data: ["ensName": .string("hweeboon.eth"), "label": .string("113246541015140777609414905115468849050300863255299358927480302797592829236733")]),
+            ]
+
+            //hhh Comparison assumes parameters for events is stored as string, so we do a string comparison
+            event = eventDatabase.first { $0.data[filterName]?.stringValue == filterValue }
+            NSLog("xxx found eventInstance matching mock database: \(event)")
+            //hhh should we skip? We should, right? Because TokenScript says source is event, but we can't find it
+            if event == nil {
+                return nil
+            }
+        } else {
+            //hhh how? Just proceed with OpenSea data
+            event = nil
+            NSLog("xxx not found eventInstance")
+        }
+        var values = xmlHandler.resolveAttributesBypassingCache(withTokenId: BigUInt(nonFungible.tokenId) ?? BigUInt(0), event: event, server: server, account: account)
         values["tokenId"] = .init(directoryString: nonFungible.tokenId)
         values["name"] = .init(directoryString: nonFungible.name)
         values["description"] = .init(directoryString: nonFungible.description)

@@ -485,7 +485,9 @@ class SingleChainTokenCoordinator: Coordinator {
         //TODO id 1 for fungibles. Might come back to bite us?
         let hardcodedTokenIdForFungibles = BigUInt(1)
         let xmlHandler = XMLHandler(contract: tokenObject.contractAddress, assetDefinitionStore: assetDefinitionStore)
-        let values = xmlHandler.resolveAttributesBypassingCache(withTokenId: hardcodedTokenIdForFungibles, server: self.session.server, account: self.session.account)
+        //hhh confirm TODO below for fungible token event support
+        //TODO Event support, if/when designed
+        let values = xmlHandler.resolveAttributesBypassingCache(withTokenId: hardcodedTokenIdForFungibles, event: nil, server: self.session.server, account: self.session.account)
         let token = Token(id: hardcodedTokenIdForFungibles, tokenType: tokenObject.type, index: 0, name: tokenObject.name, symbol: tokenObject.symbol, status: .available, values: values)
         let tokenHolder = TokenHolder(tokens: [token], contractAddress: tokenObject.contractAddress, hasAssetDefinition: true)
         let vc = TokenInstanceActionViewController(tokenObject: tokenObject, tokenHolder: tokenHolder, tokensStorage: storage, assetDefinitionStore: assetDefinitionStore, action: action, session: session, keystore: keystore)

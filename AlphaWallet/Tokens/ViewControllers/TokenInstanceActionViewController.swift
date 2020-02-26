@@ -156,7 +156,9 @@ class TokenInstanceActionViewController: UIViewController, TokenVerifiableStatus
                 .map { "document.getElementById(\"\($0)\").value" }
                 .compactMap { tokenScriptRendererView.inject(javaScript: $0) }
         let xmlHandler = XMLHandler(contract: contract, assetDefinitionStore: assetDefinitionStore)
-        let tokenLevelAttributeValues = xmlHandler.resolveAttributesBypassingCache(withTokenId: tokenId, server: server, account: session.account)
+        //hhhhhhhhhhhhh Should be passed in when "opening" this action, along with the tokenId (i.e along with the TokenHolder?)?
+        let event: EventInstance? = .init(data: ["ensName": .string("abc.eth")])
+        let tokenLevelAttributeValues = xmlHandler.resolveAttributesBypassingCache(withTokenId: tokenId, event: event, server: server, account: session.account)
         let resolveTokenLevelSubscribableAttributes = Array(tokenLevelAttributeValues.values).filterToSubscribables.createPromiseForSubscribeOnce()
 
         firstly {
@@ -238,7 +240,9 @@ class TokenInstanceActionViewController: UIViewController, TokenVerifiableStatus
     private func resolveActionAttributeValues(withUserEntryValues userEntryValues: [AttributeId: String], tokenLevelTokenIdOriginAttributeValues: [AttributeId: AssetAttributeSyntaxValue]) -> Promise<[AttributeId: AssetInternalValue]> {
         return Promise { seal in
             //TODO Not reading/writing from/to cache here because we haven't worked out volatility of attributes yet. So we assume all attributes used by an action as volatile, have to fetch the latest
-            let attributeNameValues = action.attributes.resolve(withTokenId: tokenId, userEntryValues: userEntryValues, server: server, account: session.account, additionalValues: tokenLevelTokenIdOriginAttributeValues).mapValues { $0.value }
+            //hhhhhhhhhhhhh Should be passed in when "opening" this action, along with the tokenId (i.e along with the TokenHolder?)?
+            let event: EventInstance? = .init(data: ["ensName": .string("abc.eth")])
+            let attributeNameValues = action.attributes.resolve(withTokenId: tokenId, event: event, userEntryValues: userEntryValues, server: server, account: session.account, additionalValues: tokenLevelTokenIdOriginAttributeValues).mapValues { $0.value }
             var allResolved = false
             let attributes = AssetAttributeValues(attributeValues: attributeNameValues)
             let resolvedAttributeNameValues = attributes.resolve { updatedValues in

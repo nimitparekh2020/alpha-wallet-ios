@@ -20,11 +20,15 @@ enum OpenSeaBackedNonFungibleTokenHandling {
                 case .view:
                     view = xmlHandler.tokenViewHtml
                 }
+                //hhh restore
                 if xmlHandler.hasAssetDefinition && !view.isEmpty {
                     return .notBackedByOpenSea
                 } else {
                     return .backedByOpenSea
                 }
+
+                //hhh remove
+                //return .notBackedByOpenSea
             } else {
                 return .notBackedByOpenSea
             }
@@ -41,11 +45,15 @@ enum OpenSeaSupportedNonFungibleTokenHandling {
 
     init(token: TokenObject) {
         self = {
+            //hhh restore
             if !token.balance.isEmpty && token.balance[0].balance.hasPrefix("{") {
                 return .supportedByOpenSea
             } else {
                 return .notSupportedByOpenSea
             }
+
+            //hhh remove
+            //return .notSupportedByOpenSea
         }()
     }
 }
