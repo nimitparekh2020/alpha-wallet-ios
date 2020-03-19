@@ -114,6 +114,8 @@ class AppCoordinator: NSObject, Coordinator {
         }
 
         assetDefinitionStore.delegate = self
+        //hhh remove
+        assetDefinitionStore.foo()
         return true
     }
 

@@ -159,8 +159,8 @@ class TokenAdaptor {
                 //hhh we might not get the entire list of tokens from events!
                 //hhh handle when the name-value to filter is not in the event
                 //hhh handle when the data to look up is not in the event
-                .init(data: ["ensName": .string("daphane.eth"), "label": .string("21080777284947362091231703330799095409823662112294202097514940405555870681941")]),
-                .init(data: ["ensName": .string("hweeboon.eth"), "label": .string("113246541015140777609414905115468849050300863255299358927480302797592829236733")]),
+                .init(data: ["name": .string("daphane.eth"), "label": .string("21080777284947362091231703330799095409823662112294202097514940405555870681941")]),
+                .init(data: ["name": .string("hweeboon.eth"), "label": .string("113246541015140777609414905115468849050300863255299358927480302797592829236733")]),
             ]
 
             //hhh Comparison assumes parameters for events is stored as string, so we do a string comparison

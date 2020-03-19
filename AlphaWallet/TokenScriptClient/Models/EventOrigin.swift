@@ -5,6 +5,7 @@ import Kanna
 
 //hhh this represents an event "instance", i.e with values
 //hhhh name is not so good? But clash with Event in Event.swift
+//hhh remove since we have it in Realm
 //hhh move or not?
 struct EventInstance {
     //hhh do we need to store as original Solidity types? What is the type of Value? If AssetInternalValue, means we need to convert them from solidity types when we create these instances

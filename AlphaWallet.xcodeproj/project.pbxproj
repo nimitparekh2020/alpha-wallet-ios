@@ -442,6 +442,7 @@
 		5E7C79F32F7054020B2F835A /* ServerDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7C77A1F1399FD7EE2812E8 /* ServerDictionary.swift */; };
 		5E7C7A0B5FDADC60DC01F060 /* CallSmartContractFunction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7C77C2844B3579A59C3F2F /* CallSmartContractFunction.swift */; };
 		5E7C7A13AB42B38C061D46C6 /* MnemonicLengthRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7C700AC0A7FFE95EC960FA /* MnemonicLengthRule.swift */; };
+		5E7C7A2DBFF7FB3B8B5DEB1B /* EventInstance1.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7C74822F5F71748184F6C1 /* EventInstance1.swift */; };
 		5E7C7A4384A8E3F22D3F8249 /* SetSellTokensCardExpiryDateViewControllerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7C700CD3E43689E88FBE9B /* SetSellTokensCardExpiryDateViewControllerViewModel.swift */; };
 		5E7C7A4700C79350AA486E09 /* SeedPhraseCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7C791C60E8AAF3F4239375 /* SeedPhraseCell.swift */; };
 		5E7C7A496E69849D06DF2731 /* AssetDefinitionStoreCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7C7D58E7A5DE05425623D2 /* AssetDefinitionStoreCoordinator.swift */; };
@@ -1005,6 +1006,7 @@
 		5E7C74294562EB79EFCD3559 /* DiscoverDappCellViewModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DiscoverDappCellViewModel.swift; sourceTree = "<group>"; };
 		5E7C742D015C0DEAE7759C0D /* TokenInstanceViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TokenInstanceViewController.swift; sourceTree = "<group>"; };
 		5E7C7477E69BEDF0C4950D5A /* TokenListFormatTableViewCellWithCheckbox.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TokenListFormatTableViewCellWithCheckbox.swift; sourceTree = "<group>"; };
+		5E7C74822F5F71748184F6C1 /* EventInstance1.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EventInstance1.swift; sourceTree = "<group>"; };
 		5E7C7487BDF72352446E1266 /* ImportTokenViewControllerTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImportTokenViewControllerTests.swift; sourceTree = "<group>"; };
 		5E7C74A1A13A1A6CB9E61BAC /* TokenListFormatRowViewModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TokenListFormatRowViewModel.swift; sourceTree = "<group>"; };
 		5E7C74A1C56EB33FDAD6E5B0 /* TokenInstanceActionViewModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TokenInstanceActionViewModel.swift; sourceTree = "<group>"; };
@@ -2031,6 +2033,7 @@
 				5E7C7C83B57FC8FAE9AF8F26 /* TokenCollection.swift */,
 				5E7C7957AA1BC0B5BD6E98FF /* TransactionCollection.swift */,
 				5E7C7B43816C35C3FE2EFFBE /* TokenInstanceAction.swift */,
+				5E7C74822F5F71748184F6C1 /* EventInstance1.swift */,
 			);
 			path = Types;
 			sourceTree = "<group>";
@@ -4392,6 +4395,7 @@
 				5E7C7E7B095F9824FFA244FB /* SegmentedControl.swift in Sources */,
 				5E7C7C91C5FF48F51134A7DA /* SegmentedControlViewModel.swift in Sources */,
 				5E7C7F3CB1F280E6795A479C /* EventOrigin.swift in Sources */,
+				5E7C7A2DBFF7FB3B8B5DEB1B /* EventInstance1.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
