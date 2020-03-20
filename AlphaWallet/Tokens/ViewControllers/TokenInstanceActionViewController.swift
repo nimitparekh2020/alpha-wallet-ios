@@ -157,7 +157,8 @@ class TokenInstanceActionViewController: UIViewController, TokenVerifiableStatus
                 .compactMap { tokenScriptRendererView.inject(javaScript: $0) }
         let xmlHandler = XMLHandler(contract: contract, assetDefinitionStore: assetDefinitionStore)
         //hhhhhhhhhhhhh Should be passed in when "opening" this action, along with the tokenId (i.e along with the TokenHolder?)?
-        let event: EventInstance? = .init(data: ["name": .string("abc.eth")])
+        //let event: EventInstance? = .init(data: ["name": .string("abc.eth")])
+        let event: EventInstance? = nil
         let tokenLevelAttributeValues = xmlHandler.resolveAttributesBypassingCache(withTokenId: tokenId, event: event, server: server, account: session.account)
         let resolveTokenLevelSubscribableAttributes = Array(tokenLevelAttributeValues.values).filterToSubscribables.createPromiseForSubscribeOnce()
 
@@ -241,7 +242,8 @@ class TokenInstanceActionViewController: UIViewController, TokenVerifiableStatus
         return Promise { seal in
             //TODO Not reading/writing from/to cache here because we haven't worked out volatility of attributes yet. So we assume all attributes used by an action as volatile, have to fetch the latest
             //hhhhhhhhhhhhh Should be passed in when "opening" this action, along with the tokenId (i.e along with the TokenHolder?)?
-            let event: EventInstance? = .init(data: ["name": .string("abc.eth")])
+            //let event: EventInstance? = .init(data: ["name": .string("abc.eth")])
+            let event: EventInstance? = nil
             let attributeNameValues = action.attributes.resolve(withTokenId: tokenId, event: event, userEntryValues: userEntryValues, server: server, account: session.account, additionalValues: tokenLevelTokenIdOriginAttributeValues).mapValues { $0.value }
             var allResolved = false
             let attributes = AssetAttributeValues(attributeValues: attributeNameValues)

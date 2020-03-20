@@ -92,6 +92,84 @@ class AssetDefinitionStore {
     }
     //hhh remove
     func foo() {
+        //hhh loop through all and see which has attributes with events and pull events. Only the changed ones!
+        //hhh hardcode to just 1 contract here first. Have to do it per file/contract anyway. Need to know RPCServer
+        let contract = AlphaWallet.Address(string: "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85")!
+        let xmlHandler = XMLHandler(contract: contract, assetDefinitionStore: self)
+        //hhh can there be more than 1 event? We can now since it's based on TokenId, but will break later or not?
+        if xmlHandler.attributesWithEventSource.isEmpty {
+            NSLog("xxx handler. No event-based attribute")
+            //hhh no-op?
+        } else {
+            for each in xmlHandler.attributesWithEventSource {
+                if let eventOrigin = each.eventOrigin {
+                    //hhh need to sub tokenId?
+                    let (filterName, filterValue) = eventOrigin.eventFilter
+
+                    //hhh2 tokenId. So can only request when we see the values... i.e. when user tap?! Or actually we just do it when OpenSea or whoever refreshes and get a bunch of TokenId(s), for now?
+                    //hhh2 form filter list. We assume all are indexed here, for now (and hardcoded label to index index=0)
+                    //hhh2 need to delete all for the TokenScript file if full refresh (because file has changed)
+                    //hhh change to var once TokenScript schema supports specifying if the field is indexed
+                    let filterParam: [[EventFilterable]?] = eventOrigin.parameters
+                            .filter { $0.isIndexed }
+                            .map { each in
+                        if each.name == filterName {
+                            //hhh2 need tokenId and need to substitute them in `filterValue`!
+                            //hhh replace each with $0 is readable
+                            //hhh2 need to use each.type to generate the filter correctly?
+                            if let parameterType = SolidityType(rawValue: each.type), let filterValue = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .string(filterValue)) {
+                                //hhh2 Should only end up with a few types? specifically BigUInt, BigInt, Data, String,, EthereumAddress. So must be mapped to those. Switch by solidity types?
+                                filterValue.coerce(toArgumentType: parameterType, forFunctionType: <#T##FunctionType##AlphaWallet.FunctionOrigin.FunctionType#>)
+                            } else {
+                            }
+                        } else {
+                            return nil
+                        }
+                    }
+
+                    //hhh override
+                    let filterParam_old = [(nil as [EventFilterable]?), ([EthereumAddress("0xbbce83173d5c1D122AE64856b4Af0D5AE07Fa362")!] as [EventFilterable])]
+                    let eventFilter = EventFilter(fromBlock: .blockNumber(0), toBlock: .latest, addresses: [EthereumAddress(address: eventOrigin.contract)], parameterFilters: filterParam)
+                    let server = RPCServer(chainID: 1)
+                    //hhh use
+                    eventOrigin.eventName
+
+                    //hhh also need to check which blocks to "resume"? cannot resume if when XML changed. Only for regular refreshes or when token is tapped (is it too late?)
+
+                    NSLog("xxx handler. event-based attribute: \(each)")
+                    //contract (for event)
+                    //event name
+                    //filter (key and value) - but that means we have to purge all the events for a TokenScript when the TokenScript file changes? because we don't know which events to delete selectively?
+                } else {
+                    //hhh wrong?
+                    NSLog("xxx handler. Has event-based attribute, but no event origin!")
+                }
+            }
+        }
+    }
+    //hhh remove
+    func bar(contract: AlphaWallet.Address, server: RPCServer, eventName: String, eventFilter: EventFilter) {
+        let getEventsPromise = getEventLogs(
+                withServer: server,
+                contract: contract,
+                eventName: eventName,
+                //hhh shouldn't abi be in getEventLogs() instead? Then this function is not needed
+                // swiftlint:disable:next line_length
+                abiString: "[{\"constant\":true,\"inputs\":[{\"name\":\"interfaceID\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"pure\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"withdraw\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_prices\",\"type\":\"address\"}],\"name\":\"setPriceOracle\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_minCommitmentAge\",\"type\":\"uint256\"},{\"name\":\"_maxCommitmentAge\",\"type\":\"uint256\"}],\"name\":\"setCommitmentAges\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"commitments\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"duration\",\"type\":\"uint256\"}],\"name\":\"rentPrice\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"duration\",\"type\":\"uint256\"},{\"name\":\"secret\",\"type\":\"bytes32\"}],\"name\":\"register\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"MIN_REGISTRATION_DURATION\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"minCommitmentAge\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"isOwner\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"}],\"name\":\"valid\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"duration\",\"type\":\"uint256\"}],\"name\":\"renew\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"}],\"name\":\"available\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"maxCommitmentAge\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"commitment\",\"type\":\"bytes32\"}],\"name\":\"commit\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"secret\",\"type\":\"bytes32\"}],\"name\":\"makeCommitment\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_base\",\"type\":\"address\"},{\"name\":\"_prices\",\"type\":\"address\"},{\"name\":\"_minCommitmentAge\",\"type\":\"uint256\"},{\"name\":\"_maxCommitmentAge\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"name\",\"type\":\"string\"},{\"indexed\":true,\"name\":\"label\",\"type\":\"bytes32\"},{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"cost\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"expires\",\"type\":\"uint256\"}],\"name\":\"NameRegistered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"name\",\"type\":\"string\"},{\"indexed\":true,\"name\":\"label\",\"type\":\"bytes32\"},{\"indexed\":false,\"name\":\"cost\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"expires\",\"type\":\"uint256\"}],\"name\":\"NameRenewed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"oracle\",\"type\":\"address\"}],\"name\":\"NewPriceOracle\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"}]",
+                filter: eventFilter
+        )
+        getEventsPromise.done { result in
+            NSLog("xxx events count: \(result.count)")
+            for each in result {
+                print(each)
+            }
+            //TODO make this consistent like this address has exactly one nameregistered from block a to block b
+            //if !result.description.contains("rejected") {
+            //}
+        }
+    }
+    //hhh remove
+    func bar2() {
         //let filterParam = [(nil as [EventFilterable]?), ([EthereumAddress("0xf8bf2546b61a4b7a277d118290dc9dcbb34d29a6")!] as [EventFilterable])]
         let filterParam = [(nil as [EventFilterable]?), ([EthereumAddress("0xbbce83173d5c1D122AE64856b4Af0D5AE07Fa362")!] as [EventFilterable])]
         let eventFilter = EventFilter(fromBlock: .blockNumber(0), toBlock: .latest, addresses: [EthereumAddress("0xF0AD5cAd05e10572EfcEB849f6Ff0c68f9700455")!], parameterFilters: filterParam)

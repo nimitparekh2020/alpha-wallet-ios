@@ -7,7 +7,7 @@ import Kanna
 //hhhh name is not so good? But clash with Event in Event.swift
 //hhh remove since we have it in Realm
 //hhh move or not?
-struct EventInstance {
+struct EventInstance_Old {
     //hhh do we need to store as original Solidity types? What is the type of Value? If AssetInternalValue, means we need to convert them from solidity types when we create these instances
     //hhh private
     var data: [String: AssetInternalValue] = .init()
@@ -20,14 +20,20 @@ struct EventOrigin {
 
     let originElement: XMLElement
     let xmlContext: XmlContext
+    let contract: AlphaWallet.Address
+    let eventName: String
+    let parameters: [(name: String, type: String, isIndexed: Bool)]
     let eventParameterName: String
     let eventFilter: (name: String, value: String)
 
     //hhh need asType: OriginAsType? We don't have it?
     //hhh should have as much information as args as possible. We don't use originElement in this type
-    init(originElement: XMLElement, xmlContext: XmlContext, eventParameterName: String, eventFilter: (name: String, value: String)) {
+    init(originElement: XMLElement, xmlContext: XmlContext, contract: AlphaWallet.Address, eventName: String, eventParameters: [(name: String, type: String, isIndexed: Bool)], eventParameterName: String, eventFilter: (name: String, value: String)) {
         self.originElement = originElement
         self.xmlContext = xmlContext
+        self.contract = contract
+        self.eventName = eventName
+        self.parameters = eventParameters
         self.eventParameterName = eventParameterName
         self.eventFilter = eventFilter
     }

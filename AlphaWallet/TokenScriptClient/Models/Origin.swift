@@ -106,14 +106,16 @@ enum Origin {
         self = .userEntry(.init(originElement: userEntryElement, xmlContext: xmlContext, attributeId: attributeId, asType: asType, bitmask: bitmask, bitShift: bitShift))
     }
 
-    //hhh why does function need attributeId and we don't need it for tokenId?
-    init?(forEthereumEventElement eventElement: XMLElement, xmlContext: XmlContext) {
+    init?(forEthereumEventElement eventElement: XMLElement, sourceContractElement: XMLElement, xmlContext: XmlContext) {
+        //hhh should check filter and select matches what is available in sourceContractElement
         //hhh need asType?
         //guard let asType = eventElement["as"].flatMap({ OriginAsType(rawValue: $0) }) else { return nil }
         //hhh populate. Maybe the entire event structure definition which is from another part of the XML file? too not needed?
         guard let eventParameterName = XMLHandler.getEventParameterName(fromEthereumEventElement: eventElement) else { return nil }
         guard let eventFilter = XMLHandler.getEventFilter(fromEthereumEventElement: eventElement) else { return nil }
-        self = .event(.init(originElement: eventElement, xmlContext: xmlContext, eventParameterName: eventParameterName, eventFilter: eventFilter))
+        //hhh remove explicit type
+        guard let definition: (contract: AlphaWallet.Address, name: String, parameters: [(name: String, type: String, isIndexed: Bool)]) = XMLHandler.getEventDefinition(fromContractElement: sourceContractElement, xmlContext: xmlContext) else { return nil }
+        self = .event(.init(originElement: eventElement, xmlContext: xmlContext, contract: definition.contract, eventName: definition.name, eventParameters: definition.parameters, eventParameterName: eventParameterName, eventFilter: eventFilter))
     }
 
     ///Used to truncate bits to the right of the bitmask

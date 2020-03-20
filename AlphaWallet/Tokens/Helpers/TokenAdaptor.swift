@@ -153,14 +153,15 @@ class TokenAdaptor {
             let filterName = eventFilter.name
             let filterValue = eventFilter.value.replacingOccurrences(of: "${tokenId}", with: nonFungible.tokenId)
 
+            //hhh2 get from database
             //hhhhhhhhhh look up events database using the key-value + contract address for the "controller" contract, and chain
             //hhh remove database. Need to lookup Realm instead. We have access here?
             let eventDatabase: [EventInstance] = [
                 //hhh we might not get the entire list of tokens from events!
                 //hhh handle when the name-value to filter is not in the event
                 //hhh handle when the data to look up is not in the event
-                .init(data: ["name": .string("daphane.eth"), "label": .string("21080777284947362091231703330799095409823662112294202097514940405555870681941")]),
-                .init(data: ["name": .string("hweeboon.eth"), "label": .string("113246541015140777609414905115468849050300863255299358927480302797592829236733")]),
+                //.init(data: ["name": .string("daphane.eth"), "label": .string("21080777284947362091231703330799095409823662112294202097514940405555870681941")]),
+                //.init(data: ["name": .string("hweeboon.eth"), "label": .string("113246541015140777609414905115468849050300863255299358927480302797592829236733")]),
             ]
 
             //hhh Comparison assumes parameters for events is stored as string, so we do a string comparison

@@ -58,6 +58,7 @@ struct AssetAttribute {
         return XMLHandler.getNameElement(fromAttributeTypeElement: attribute, xmlContext: xmlContext)?.text ?? ""
     }
     //hhh must return nil and also affect isEventOriginBased above if value does not include ${tokenId}. Maybe the EventOrigin shouldn't be created if so
+    //hhh maybe just use eventOrigin below
     var eventFilter: (name: String, value: String)? {
         switch origin {
         case .event(let eventOrigin):
@@ -66,8 +67,16 @@ struct AssetAttribute {
             return nil
         }
     }
+    var eventOrigin: EventOrigin? {
+        switch origin {
+        case .event(let eventOrigin):
+            return eventOrigin
+        case .tokenId, .userEntry, .function:
+            return nil
+        }
+    }
 
-    init?(attribute: XMLElement, xmlContext: XmlContext, server: RPCServer, contractNamesAndAddresses: [String: [(AlphaWallet.Address, RPCServer)]]) {
+    init?(attribute: XMLElement, xmlContext: XmlContext, root: XMLDocument, server: RPCServer, contractNamesAndAddresses: [String: [(AlphaWallet.Address, RPCServer)]]) {
         guard let rawSyntax = attribute["syntax"],
               let syntax = AssetAttributeSyntax(rawValue: rawSyntax) else { return nil }
 
@@ -85,15 +94,13 @@ struct AssetAttribute {
                   let attributeId = attribute["id"] {
             originFound = Origin(forUserEntryElement: userEntryElement, attributeId: attributeId, xmlContext: xmlContext)
         } else if let ethereumEventElement = XMLHandler.getOriginEventElement(fromAttributeTypeElement: attribute, xmlContext: xmlContext),
-                  ethereumEventElement["event"] != nil,
+                  let eventName = ethereumEventElement["event"],
+                  let eventSourceContractElement = root.at_xpath("contract[asnx:module[@name='\(eventName)']]".addToXPath(namespacePrefix: xmlContext.namespacePrefix), namespaces: xmlContext.namespaces),
                   //hhh needed?
                   let attributeId = attribute["id"] {
                   //hhh need this?
-                  //let functionOriginContractName = ethereumEventElement["contract"].nilIfEmpty,
-                  //hhh need this?
                   //let contract = XMLHandler.getNonTokenHoldingContract(byName: functionOriginContractName, server: server, fromContractNamesAndAddresses: contractNamesAndAddresses)
-                //hhh need originContract? Do we have it?
-            originFound = Origin(forEthereumEventElement: ethereumEventElement, xmlContext: xmlContext)
+            originFound = Origin(forEthereumEventElement: ethereumEventElement, sourceContractElement: eventSourceContractElement, xmlContext: xmlContext)
         }
 
 

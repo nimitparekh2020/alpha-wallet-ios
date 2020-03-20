@@ -546,7 +546,7 @@ private class PrivateXMLHandler {
         for each in XMLHandler.getAttributeTypeElements(fromAttributeTypesElement: element, xmlContext: xmlContext) {
             guard let id = each["id"] else { continue }
             //TODO we pass in server because we are assuming the server used for non-token-holding contracts are the same as the token-holding contract for now. Not always true. We'll have to fix it in the future when TokenScript supports it
-            guard let attribute = server.flatMap({ AssetAttribute(attribute: each, xmlContext: xmlContext, server: $0, contractNamesAndAddresses: contractNamesAndAddresses) }) else { continue }
+            guard let attribute = server.flatMap({ AssetAttribute(attribute: each, xmlContext: xmlContext, root: xml, server: $0, contractNamesAndAddresses: contractNamesAndAddresses) }) else { continue }
             fields[id] = attribute
         }
         return fields
@@ -582,7 +582,8 @@ private class PrivateXMLHandler {
         let namespaces = [
             "ts": PrivateXMLHandler.tokenScriptNamespace,
             "ds": "http://www.w3.org/2000/09/xmldsig#",
-            "xhtml": "http://www.w3.org/1999/xhtml"
+            "xhtml": "http://www.w3.org/1999/xhtml",
+            "asnx": "urn:ietf:params:xml:ns:asnx"
         ]
         return .init(namespacePrefix: rootNamespacePrefix, namespaces: namespaces, lang: lang)
     }
@@ -857,6 +858,31 @@ extension XMLHandler {
         return eventParameterName
     }
 
+    //hhh typealias return type or a proper type
+    static func getEventDefinition(fromContractElement contractElement: XMLElement, xmlContext: XmlContext) -> (contract: AlphaWallet.Address, name: String, parameters: [(name: String, type: String, isIndexed: Bool)])? {
+        let addressElements = XMLHandler.getAddressElements(fromContractElement: contractElement, xmlContext: xmlContext)
+        //hhh assume only 1!
+        guard let address = addressElements.first?.text.flatMap({ AlphaWallet.Address(string: $0.trimmed)}) else { return nil }
+        guard let eventName = contractElement.at_xpath("asnx:module", namespaces: xmlContext.namespaces)?["name"] else { return nil }
+        let parameters = contractElement.xpath("asnx:module/sequence/element", namespaces: xmlContext.namespaces).compactMap { each -> (name: String, type: String, isIndexed: Bool)? in
+            guard let name = each["name"], let type = each["type"] else { return nil }
+            //hhh2 remove we hardcoded so that `label` and `owner` is marked as isIndexed until the schema supports it, during development
+            if ["label", "owner"].contains(name) {
+                return (name: name, type: type, isIndexed: true)
+            } else {
+                return (name: name, type: type, isIndexed: false)
+            }
+            //hhh restore
+            //return (name: name, type: type, indexed: isIndexed)
+        }
+        if parameters.isEmpty {
+            return nil
+        } else {
+            return (contract: address, name: eventName, parameters: parameters)
+        }
+    }
+
+    ///The value to be a template containing variables. e.g. for the filter "label=${tokenId}", the extracted name is "label" and value is "${tokenId}"
     static func getEventFilter(fromEthereumEventElement ethereumEventElement: XMLElement) -> (name: String, value: String)? {
         guard let filter = ethereumEventElement["filter"] else { return nil }
         let components = filter.split(separator: "=", maxSplits: 1)
