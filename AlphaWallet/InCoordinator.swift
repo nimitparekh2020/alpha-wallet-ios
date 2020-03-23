@@ -266,6 +266,23 @@ class InCoordinator: NSObject, Coordinator {
         setupEtherBalances()
         setupWalletSessions()
         setupCallForAssetAttributeCoordinators()
+
+        //hhh move! But tokensStorages might be created a few times?
+        //hhh2 have to use this both when (A) start up (and gotten the list of TokenScript files) as well as (B) when the files change, and (C) when a token balance is refreshed. The latter is trigger
+        let eventSource = EventSource(tokensStorages: tokensStorages, assetDefinitionStore: assetDefinitionStore)
+        let tokensStoragesForEnabledServers = config.enabledServers.map { tokensStorages[$0] }
+        //hhh is this loop very slow?
+        for eachTokenStorage in tokensStoragesForEnabledServers {
+            for eachToken in eachTokenStorage.enabledObject {
+                let xmlHandler = XMLHandler(contract: eachToken.contractAddress, assetDefinitionStore: assetDefinitionStore)
+                if xmlHandler.hasAssetDefinition {
+                    NSLog("xxx \(eachToken.contract) has asset definition. Fetching events if attributes has event origin")
+                    eventSource.foo(token: eachToken, xmlHandler: xmlHandler, account: wallet)
+                } else {
+                    //hhh
+                }
+            }
+        }
     }
 
     func showTabBar(for account: Wallet) {

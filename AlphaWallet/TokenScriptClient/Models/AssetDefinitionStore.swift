@@ -5,8 +5,8 @@ import Alamofire
 import PromiseKit
 //hhh good sign we need to move the event sourcer code out of this class
 import web3swift
-//hhh remove
-import RealmSwift
+//hhh remove?
+import BigInt
 
 protocol AssetDefinitionStoreDelegate: class {
     func listOfBadTokenScriptFilesChanged(in: AssetDefinitionStore )
@@ -96,6 +96,12 @@ class AssetDefinitionStore {
         //hhh hardcode to just 1 contract here first. Have to do it per file/contract anyway. Need to know RPCServer
         let contract = AlphaWallet.Address(string: "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85")!
         let xmlHandler = XMLHandler(contract: contract, assetDefinitionStore: self)
+
+        //hhh2
+        //let eventSource = EventSource()
+        //eventSource.foo(xmlHandler: xmlHandler)
+
+
         //hhh can there be more than 1 event? We can now since it's based on TokenId, but will break later or not?
         if xmlHandler.attributesWithEventSource.isEmpty {
             NSLog("xxx handler. No event-based attribute")
@@ -117,22 +123,54 @@ class AssetDefinitionStore {
                             //hhh2 need tokenId and need to substitute them in `filterValue`!
                             //hhh replace each with $0 is readable
                             //hhh2 need to use each.type to generate the filter correctly?
-                            if let parameterType = SolidityType(rawValue: each.type), let filterValue = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .string(filterValue)) {
-                                //hhh2 Should only end up with a few types? specifically BigUInt, BigInt, Data, String,, EthereumAddress. So must be mapped to those. Switch by solidity types?
-                                filterValue.coerce(toArgumentType: parameterType, forFunctionType: <#T##FunctionType##AlphaWallet.FunctionOrigin.FunctionType#>)
+                            //hhh2 for tokenId, when we substitude it in, is it a dec or hex string?
+                            //hhh rename
+                            if let parameterType = SolidityType(rawValue: each.type) {
+                                let filterValueX: AssetAttributeValueUsableAsFunctionArguments?
+                                //hhh2 support all the implicit types? Only tokenId and ownerAddress for now?
+                                switch filterValue {
+                                case "${tokenId}":
+                                    //hhhhhhh2 hardcoded ID! Need to fetch a list of tokenIds from database and loop? Then in each promise, insert into database?
+                                    let tokenId: BigUInt = BigUInt("113246541015140777609414905115468849050300863255299358927480302797592829236733")
+                                    filterValueX = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .uint(tokenId))
+                                default:
+                                    //hhh2 still support substitution. But how to handle type conversions like tokenId?
+                                    filterValueX = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .string(filterValue))
+                                }
+                                guard let filterValueY = filterValueX else { return nil }
+                                //hhhhhhh2 Should only end up with a few types? specifically BigUInt, BigInt, Data, String, EthereumAddress. So must be mapped to those. Switch by solidity types?
+                                //hhh we have to "cast" it to Data, etc which can then be cast to EventFilterable here. So have to handle this first
+                                //hhh rename
+                                let filterValue2 = filterValueY.coerce(toArgumentType: parameterType, forFunctionType: .eventFiltering) as? Data
+                                NSLog("xxx filterValue2 coerced: \(filterValue2)")
+                                //hhh2 clean up
+                                if filterValue2 == nil {
+                                    return nil
+                                } else {
+                                    //hhh2 good to return?
+                                    let filterValue3 = filterValue2 as? EventFilterable
+                                    NSLog("xxx filterValue3 coerced: \(filterValue3)")
+                                    if filterValue3 != nil {
+                                        //hhh forced unwrap
+                                        return [filterValue3!]
+                                    } else {
+                                        return nil
+                                    }
+                                }
                             } else {
+                                return nil
                             }
                         } else {
                             return nil
                         }
                     }
+                    NSLog("xxx filterParam: \(filterParam)")
 
                     //hhh override
                     let filterParam_old = [(nil as [EventFilterable]?), ([EthereumAddress("0xbbce83173d5c1D122AE64856b4Af0D5AE07Fa362")!] as [EventFilterable])]
                     let eventFilter = EventFilter(fromBlock: .blockNumber(0), toBlock: .latest, addresses: [EthereumAddress(address: eventOrigin.contract)], parameterFilters: filterParam)
                     let server = RPCServer(chainID: 1)
-                    //hhh use
-                    eventOrigin.eventName
+
 
                     //hhh also need to check which blocks to "resume"? cannot resume if when XML changed. Only for regular refreshes or when token is tapped (is it too late?)
 
@@ -140,6 +178,21 @@ class AssetDefinitionStore {
                     //contract (for event)
                     //event name
                     //filter (key and value) - but that means we have to purge all the events for a TokenScript when the TokenScript file changes? because we don't know which events to delete selectively?
+
+                    //hhh need to move out? This is for-each for attribute, or ok?
+                    firstly {
+                        getEventLogs(withServer: server, contract: eventOrigin.contract, eventName: eventOrigin.eventName, filter: eventFilter)
+                    }.done { result in
+                        NSLog("xxx events count: \(result.count)")
+                        for each in result {
+                            print(each)
+                        }
+                        //TODO make this consistent like this address has exactly one nameregistered from block a to block b
+                        //if !result.description.contains("rejected") {
+                        //}
+                    }.catch { error in
+                        NSLog("xxx error with event promise: \(error)")
+                    }
                 } else {
                     //hhh wrong?
                     NSLog("xxx handler. Has event-based attribute, but no event origin!")
@@ -148,32 +201,11 @@ class AssetDefinitionStore {
         }
     }
     //hhh remove
-    func bar(contract: AlphaWallet.Address, server: RPCServer, eventName: String, eventFilter: EventFilter) {
-        let getEventsPromise = getEventLogs(
-                withServer: server,
-                contract: contract,
-                eventName: eventName,
-                //hhh shouldn't abi be in getEventLogs() instead? Then this function is not needed
-                // swiftlint:disable:next line_length
-                abiString: "[{\"constant\":true,\"inputs\":[{\"name\":\"interfaceID\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"pure\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"withdraw\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_prices\",\"type\":\"address\"}],\"name\":\"setPriceOracle\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_minCommitmentAge\",\"type\":\"uint256\"},{\"name\":\"_maxCommitmentAge\",\"type\":\"uint256\"}],\"name\":\"setCommitmentAges\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"commitments\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"duration\",\"type\":\"uint256\"}],\"name\":\"rentPrice\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"duration\",\"type\":\"uint256\"},{\"name\":\"secret\",\"type\":\"bytes32\"}],\"name\":\"register\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"MIN_REGISTRATION_DURATION\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"minCommitmentAge\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"isOwner\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"}],\"name\":\"valid\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"duration\",\"type\":\"uint256\"}],\"name\":\"renew\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"}],\"name\":\"available\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"maxCommitmentAge\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"commitment\",\"type\":\"bytes32\"}],\"name\":\"commit\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"secret\",\"type\":\"bytes32\"}],\"name\":\"makeCommitment\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_base\",\"type\":\"address\"},{\"name\":\"_prices\",\"type\":\"address\"},{\"name\":\"_minCommitmentAge\",\"type\":\"uint256\"},{\"name\":\"_maxCommitmentAge\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"name\",\"type\":\"string\"},{\"indexed\":true,\"name\":\"label\",\"type\":\"bytes32\"},{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"cost\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"expires\",\"type\":\"uint256\"}],\"name\":\"NameRegistered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"name\",\"type\":\"string\"},{\"indexed\":true,\"name\":\"label\",\"type\":\"bytes32\"},{\"indexed\":false,\"name\":\"cost\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"expires\",\"type\":\"uint256\"}],\"name\":\"NameRenewed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"oracle\",\"type\":\"address\"}],\"name\":\"NewPriceOracle\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"}]",
-                filter: eventFilter
-        )
-        getEventsPromise.done { result in
-            NSLog("xxx events count: \(result.count)")
-            for each in result {
-                print(each)
-            }
-            //TODO make this consistent like this address has exactly one nameregistered from block a to block b
-            //if !result.description.contains("rejected") {
-            //}
-        }
-    }
-    //hhh remove
     func bar2() {
         //let filterParam = [(nil as [EventFilterable]?), ([EthereumAddress("0xf8bf2546b61a4b7a277d118290dc9dcbb34d29a6")!] as [EventFilterable])]
         let filterParam = [(nil as [EventFilterable]?), ([EthereumAddress("0xbbce83173d5c1D122AE64856b4Af0D5AE07Fa362")!] as [EventFilterable])]
         let eventFilter = EventFilter(fromBlock: .blockNumber(0), toBlock: .latest, addresses: [EthereumAddress("0xF0AD5cAd05e10572EfcEB849f6Ff0c68f9700455")!], parameterFilters: filterParam)
-        let getEventsPromise = getEventLogs(
+        let getEventsPromise = getEventLogsOld(
                 withServer: RPCServer(chainID: 1),
                 contract: AlphaWallet.Address(string: "0xF0AD5cAd05e10572EfcEB849f6Ff0c68f9700455")!,
                 eventName: "NameRegistered",
@@ -347,6 +379,126 @@ extension AssetDefinitionStore: AssetDefinitionBackingStoreDelegate {
         //Careful to not fire immediately because even though we are on the main thread; while we are modifying the indices, we can't read from it or there'll be a crash
         DispatchQueue.main.async {
             self.delegate?.listOfBadTokenScriptFilesChanged(in: self)
+        }
+    }
+}
+
+//hhh move to separate file. Needs input from Realm database. Use contract to get a list of tokenIds
+class EventSource {
+    //hhh do we need this?
+    private let tokensStorages: ServerDictionary<TokensDataStore>
+    private let assetDefinitionStore: AssetDefinitionStore
+
+    init(tokensStorages: ServerDictionary<TokensDataStore>, assetDefinitionStore: AssetDefinitionStore) {
+        self.tokensStorages = tokensStorages
+        self.assetDefinitionStore = assetDefinitionStore
+    }
+
+    //hhh2
+    func foo(token: TokenObject, xmlHandler: XMLHandler, account: Wallet) {
+        //hhh loop through all and see which has attributes with events and pull events. Only the changed ones!
+        //hhh hardcode to just 1 contract here first. Have to do it per file/contract anyway. Need to know RPCServer
+        //hhh can there be more than 1 event? We can now since it's based on TokenId, but will break later or not?
+        if xmlHandler.attributesWithEventSource.isEmpty {
+            NSLog("xxx handler. No event-based attribute")
+            //hhh no-op?
+        } else {
+            for each in xmlHandler.attributesWithEventSource {
+                if let eventOrigin = each.eventOrigin {
+                    //hhh need to sub tokenId?
+                    let (filterName, filterValue) = eventOrigin.eventFilter
+
+                    //hhh2 tokenId. So can only request when we see the values... i.e. when user tap?! Or actually we just do it when OpenSea or whoever refreshes and get a bunch of TokenId(s), for now?
+                    //hhh2 form filter list. We assume all are indexed here, for now (and hardcoded label to index index=0)
+                    //hhh2 need to delete all for the TokenScript file if full refresh (because file has changed)
+                    //hhh change to var once TokenScript schema supports specifying if the field is indexed
+                    let filterParam: [[EventFilterable]?] = eventOrigin.parameters
+                            .filter { $0.isIndexed }
+                            .map { each in
+                                if each.name == filterName {
+                                    //hhh2 need tokenId and need to substitute them in `filterValue`!
+                                    //hhh replace each with $0 is readable
+                                    //hhh2 need to use each.type to generate the filter correctly?
+                                    //hhh2 for tokenId, when we substitude it in, is it a dec or hex string?
+                                    //hhh rename
+                                    if let parameterType = SolidityType(rawValue: each.type) {
+                                        let filterValueX: AssetAttributeValueUsableAsFunctionArguments?
+                                        //hhh2 support all the implicit types? Only tokenId and ownerAddress for now?
+
+                                        hhhhhhhhhhhhhh2 [] because no events in the first place. Should just get from the JSON for OpenSea only. How?
+                                        let tokenHolders = TokenAdaptor(token: token, assetDefinitionStore: assetDefinitionStore).getTokenHolders(forWallet: account)
+                                        NSLog("xxx tokenHolders: \(tokenHolders) for token: \(token.contract) server: \(token.server)")
+
+                                        switch filterValue {
+                                        case "${tokenId}":
+                                            //hhhhhhh2 hardcoded ID! Need to fetch a list of tokenIds from database and loop? Then in each promise, insert into database?
+                                            let tokenId: BigUInt = BigUInt("113246541015140777609414905115468849050300863255299358927480302797592829236733")
+                                            filterValueX = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .uint(tokenId))
+                                        default:
+                                            //hhh2 still support substitution. But how to handle type conversions like tokenId?
+                                            filterValueX = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .string(filterValue))
+                                        }
+                                        guard let filterValueY = filterValueX else { return nil }
+                                        //hhhhhhh2 Should only end up with a few types? specifically BigUInt, BigInt, Data, String, EthereumAddress. So must be mapped to those. Switch by solidity types?
+                                        //hhh we have to "cast" it to Data, etc which can then be cast to EventFilterable here. So have to handle this first
+                                        //hhh rename
+                                        let filterValue2 = filterValueY.coerce(toArgumentType: parameterType, forFunctionType: .eventFiltering) as? Data
+                                        NSLog("xxx filterValue2 coerced: \(filterValue2)")
+                                        //hhh2 clean up
+                                        if filterValue2 == nil {
+                                            return nil
+                                        } else {
+                                            //hhh2 good to return?
+                                            let filterValue3 = filterValue2 as? EventFilterable
+                                            NSLog("xxx filterValue3 coerced: \(filterValue3)")
+                                            if filterValue3 != nil {
+                                                //hhh forced unwrap
+                                                return [filterValue3!]
+                                            } else {
+                                                return nil
+                                            }
+                                        }
+                                    } else {
+                                        return nil
+                                    }
+                                } else {
+                                    return nil
+                                }
+                            }
+                    NSLog("xxx filterParam: \(filterParam)")
+
+                    //hhh override
+                    let filterParam_old = [(nil as [EventFilterable]?), ([EthereumAddress("0xbbce83173d5c1D122AE64856b4Af0D5AE07Fa362")!] as [EventFilterable])]
+                    let eventFilter = EventFilter(fromBlock: .blockNumber(0), toBlock: .latest, addresses: [EthereumAddress(address: eventOrigin.contract)], parameterFilters: filterParam)
+                    let server = RPCServer(chainID: 1)
+
+
+                    //hhh also need to check which blocks to "resume"? cannot resume if when XML changed. Only for regular refreshes or when token is tapped (is it too late?)
+
+                    NSLog("xxx handler. event-based attribute: \(each)")
+                    //contract (for event)
+                    //event name
+                    //filter (key and value) - but that means we have to purge all the events for a TokenScript when the TokenScript file changes? because we don't know which events to delete selectively?
+
+                    //hhh need to move out? This is for-each for attribute, or ok?
+                    firstly {
+                        getEventLogs(withServer: server, contract: eventOrigin.contract, eventName: eventOrigin.eventName, filter: eventFilter)
+                    }.done { result in
+                        NSLog("xxx events count: \(result.count)")
+                        for each in result {
+                            print(each)
+                        }
+                        //TODO make this consistent like this address has exactly one nameregistered from block a to block b
+                        //if !result.description.contains("rejected") {
+                        //}
+                    }.catch { error in
+                        NSLog("xxx error with event promise: \(error)")
+                    }
+                } else {
+                    //hhh wrong?
+                    NSLog("xxx handler. Has event-based attribute, but no event origin!")
+                }
+            }
         }
     }
 }

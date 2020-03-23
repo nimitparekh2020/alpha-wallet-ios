@@ -865,7 +865,7 @@ extension XMLHandler {
         guard let address = addressElements.first?.text.flatMap({ AlphaWallet.Address(string: $0.trimmed)}) else { return nil }
         guard let eventName = contractElement.at_xpath("asnx:module", namespaces: xmlContext.namespaces)?["name"] else { return nil }
         let parameters = contractElement.xpath("asnx:module/sequence/element", namespaces: xmlContext.namespaces).compactMap { each -> (name: String, type: String, isIndexed: Bool)? in
-            guard let name = each["name"], let type = each["type"] else { return nil }
+            guard let name = each["name"], let type = each["ethereum-type"] else { return nil }
             //hhh2 remove we hardcoded so that `label` and `owner` is marked as isIndexed until the schema supports it, during development
             if ["label", "owner"].contains(name) {
                 return (name: name, type: type, isIndexed: true)

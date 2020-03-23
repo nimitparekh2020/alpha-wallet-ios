@@ -3,6 +3,7 @@
 import Foundation
 import BigInt
 import TrustKeystore
+import web3swift
 
 enum AssetAttributeValueUsableAsFunctionArguments {
     case address(AlphaWallet.Address)
@@ -63,6 +64,8 @@ enum AssetAttributeValueUsableAsFunctionArguments {
                 return address.eip55String as AnyObject
             case .functionTransaction, .paymentTransaction:
                 return Address(address: address) as AnyObject
+            case .eventFiltering:
+                return EthereumAddress(address: address) as AnyObject
             }
         case .string(let string):
             switch functionType {
@@ -70,6 +73,8 @@ enum AssetAttributeValueUsableAsFunctionArguments {
                 return AlphaWallet.Address(string: string)?.eip55String as AnyObject
             case .functionTransaction, .paymentTransaction:
                 return Address(string: string) as AnyObject
+            case .eventFiltering:
+                return EthereumAddress(string) as AnyObject
             }
         case .int, .uint, .generalisedTime, .bool, .bytes:
             return nil
