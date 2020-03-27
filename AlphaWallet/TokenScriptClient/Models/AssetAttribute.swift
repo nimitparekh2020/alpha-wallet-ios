@@ -152,6 +152,7 @@ extension Dictionary where Key == AttributeId, Value == AssetAttribute {
         for (attributeId, attribute) in eventBased {
             let resolvedAttributes = attributeNameValues.merging(additionalValues) { (_, new) in new }
             guard let event = event else { break }
+            //hhhhhhhhhhhhhhhhhhhhhhhhhhhh2 why N/A?
             let value = attribute.value(from: tokenId, event: event, inWallet: account, server: server, callForAssetAttributeCoordinator: callForAssetAttributeCoordinator, userEntryValues: userEntryValues, tokenLevelNonSubscribableAttributesAndValues: resolvedAttributes.mapValues { $0.value })
             attributeNameValues[attributeId] = value
         }

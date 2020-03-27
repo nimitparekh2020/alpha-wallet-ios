@@ -32,6 +32,9 @@ enum Tabs {
 
 // swiftlint:disable type_body_length
 class InCoordinator: NSObject, Coordinator {
+    //hhh remove. Once we are sure we need it at the callers
+    static var realm: Realm?
+
     private var wallet: Wallet
     private let config: Config
     private let assetDefinitionStore: AssetDefinitionStore
@@ -96,6 +99,9 @@ class InCoordinator: NSObject, Coordinator {
         self.assetDefinitionStore.enableFetchXMLForContractInPasteboard()
 
         super.init()
+
+        //hhh remove
+        InCoordinator.realm = self.realm(forAccount: wallet)
     }
 
     func start() {
@@ -277,7 +283,10 @@ class InCoordinator: NSObject, Coordinator {
                 let xmlHandler = XMLHandler(contract: eachToken.contractAddress, assetDefinitionStore: assetDefinitionStore)
                 if xmlHandler.hasAssetDefinition {
                     NSLog("xxx \(eachToken.contract) has asset definition. Fetching events if attributes has event origin")
-                    eventSource.foo(token: eachToken, xmlHandler: xmlHandler, account: wallet)
+                    //hhh2 this is the code to build event filters and source from events
+                    //hhh pass in realm here on in the EventSource class?
+                    let realm = self.realm(forAccount: wallet)
+                    eventSource.foo(realm: realm, token: eachToken, xmlHandler: xmlHandler, account: wallet)
                 } else {
                     //hhh
                 }

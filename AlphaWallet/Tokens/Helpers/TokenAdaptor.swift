@@ -7,6 +7,7 @@
 //
 
 import Foundation
+//hhh remove if not used
 import RealmSwift
 import BigInt
 
@@ -19,7 +20,9 @@ class TokenAdaptor {
         self.assetDefinitionStore = assetDefinitionStore
     }
 
-    public func getTokenHolders(forWallet account: Wallet) -> [TokenHolder] {
+    //hhh keep sourceFromEvents?
+    //hhh maybe it not have a default value if we keep it?
+    public func getTokenHolders(forWallet account: Wallet, sourceFromEvents: Bool = true) -> [TokenHolder] {
         switch token.type {
         case .nativeCryptocurrency, .erc20, .erc875, .erc721ForTickets:
             return getNotSupportedByOpenSeaTokenHolders(forWallet: account)
@@ -27,7 +30,7 @@ class TokenAdaptor {
             let tokenType = OpenSeaSupportedNonFungibleTokenHandling(token: token)
             switch tokenType {
             case .supportedByOpenSea:
-                return getSupportedByOpenSeaTokenHolders(forWallet: account)
+                return getSupportedByOpenSeaTokenHolders(forWallet: account, sourceFromEvents: sourceFromEvents)
             case .notSupportedByOpenSea:
                 return getNotSupportedByOpenSeaTokenHolders(forWallet: account)
             }
@@ -52,12 +55,12 @@ class TokenAdaptor {
         return bundle(tokens: tokens)
     }
 
-    private func getSupportedByOpenSeaTokenHolders(forWallet account: Wallet) -> [TokenHolder] {
+    private func getSupportedByOpenSeaTokenHolders(forWallet account: Wallet, sourceFromEvents: Bool) -> [TokenHolder] {
         let balance = token.balance
         var tokens = [Token]()
         for item in balance {
             let jsonString = item.balance
-            if let token = getTokenForOpenSeaNonFungible(forJSONString: jsonString, inWallet: account, server: self.token.server) {
+            if let token = getTokenForOpenSeaNonFungible(forJSONString: jsonString, inWallet: account, server: self.token.server, sourceFromEvents: sourceFromEvents) {
                 tokens.append(token)
             }
         }
@@ -143,12 +146,11 @@ class TokenAdaptor {
         return XMLHandler(contract: token.contractAddress, assetDefinitionStore: assetDefinitionStore).getToken(name: name, symbol: symbol, fromTokenId: id, event: event, index: index, inWallet: account, server: server, tokenType: token.type)
     }
 
-    private func getTokenForOpenSeaNonFungible(forJSONString jsonString: String, inWallet account: Wallet, server: RPCServer) -> Token? {
+    private func getTokenForOpenSeaNonFungible(forJSONString jsonString: String, inWallet account: Wallet, server: RPCServer, sourceFromEvents: Bool) -> Token? {
         guard let data = jsonString.data(using: .utf8), let nonFungible = try? JSONDecoder().decode(OpenSeaNonFungible.self, from: data) else { return nil }
         let xmlHandler = XMLHandler(contract: token.contractAddress, assetDefinitionStore: assetDefinitionStore)
         let event: EventInstance?
-        let attributesWithEventSource = xmlHandler.attributesWithEventSource
-        if let attributeWithEventSource = attributesWithEventSource.first, let eventFilter = attributeWithEventSource.eventFilter {
+        if sourceFromEvents, let attributeWithEventSource = xmlHandler.attributesWithEventSource.first, let eventFilter = attributeWithEventSource.eventFilter {
             //hhh clean up?
             let filterName = eventFilter.name
             let filterValue = eventFilter.value.replacingOccurrences(of: "${tokenId}", with: nonFungible.tokenId)
@@ -165,8 +167,15 @@ class TokenAdaptor {
             ]
 
             //hhh Comparison assumes parameters for events is stored as string, so we do a string comparison
-            event = eventDatabase.first { $0.data[filterName]?.stringValue == filterValue }
-            NSLog("xxx found eventInstance matching mock database: \(event)")
+            //hhhhhhhhhhhhhhhhhhhhh2 read from DB now
+            //hhh2 do we need realm here? Can it be somewhere else?
+            let realm = InCoordinator.realm!
+            //hhhhhhhhhh2 filter by contract, etc also
+            let eventsFromDatabase = realm.objects(EventInstance.self).filter("filter = '\(filterName)=\(filterValue)'")
+            event = eventsFromDatabase.first
+            //hhh remove
+            //event = eventDatabase.first { $0.data[filterName]?.stringValue == filterValue }
+            NSLog("xxx found eventInstance matching mock database: \(event) count: \(eventsFromDatabase.count)")
             //hhh should we skip? We should, right? Because TokenScript says source is event, but we can't find it
             if event == nil {
                 return nil
@@ -174,7 +183,11 @@ class TokenAdaptor {
         } else {
             //hhh how? Just proceed with OpenSea data
             event = nil
-            NSLog("xxx not found eventInstance")
+            if sourceFromEvents {
+                NSLog("xxx not found eventInstance")
+            } else {
+                NSLog("xxx skip events because sourceFromEvents = false")
+            }
         }
         var values = xmlHandler.resolveAttributesBypassingCache(withTokenId: BigUInt(nonFungible.tokenId) ?? BigUInt(0), event: event, server: server, account: account)
         values["tokenId"] = .init(directoryString: nonFungible.tokenId)

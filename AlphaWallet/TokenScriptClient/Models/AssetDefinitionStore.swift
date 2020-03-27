@@ -7,6 +7,8 @@ import PromiseKit
 import web3swift
 //hhh remove?
 import BigInt
+//hhh remove
+import RealmSwift
 
 protocol AssetDefinitionStoreDelegate: class {
     func listOfBadTokenScriptFilesChanged(in: AssetDefinitionStore )
@@ -395,7 +397,7 @@ class EventSource {
     }
 
     //hhh2
-    func foo(token: TokenObject, xmlHandler: XMLHandler, account: Wallet) {
+    func foo(realm: Realm, token: TokenObject, xmlHandler: XMLHandler, account: Wallet) {
         //hhh loop through all and see which has attributes with events and pull events. Only the changed ones!
         //hhh hardcode to just 1 contract here first. Have to do it per file/contract anyway. Need to know RPCServer
         //hhh can there be more than 1 event? We can now since it's based on TokenId, but will break later or not?
@@ -412,7 +414,7 @@ class EventSource {
                     //hhh2 form filter list. We assume all are indexed here, for now (and hardcoded label to index index=0)
                     //hhh2 need to delete all for the TokenScript file if full refresh (because file has changed)
                     //hhh change to var once TokenScript schema supports specifying if the field is indexed
-                    let filterParam: [[EventFilterable]?] = eventOrigin.parameters
+                    let filterParam: [(filter: [EventFilterable], textEquivalent: String)?] = eventOrigin.parameters
                             .filter { $0.isIndexed }
                             .map { each in
                                 if each.name == filterName {
@@ -422,28 +424,29 @@ class EventSource {
                                     //hhh2 for tokenId, when we substitude it in, is it a dec or hex string?
                                     //hhh rename
                                     if let parameterType = SolidityType(rawValue: each.type) {
-                                        let filterValueX: AssetAttributeValueUsableAsFunctionArguments?
+                                        let filterValueX: (filter: AssetAttributeValueUsableAsFunctionArguments, textEquivalent: String)?
                                         //hhh2 support all the implicit types? Only tokenId and ownerAddress for now?
 
-                                        hhhhhhhhhhhhhh2 [] because no events in the first place. Should just get from the JSON for OpenSea only. How?
-                                        let tokenHolders = TokenAdaptor(token: token, assetDefinitionStore: assetDefinitionStore).getTokenHolders(forWallet: account)
+                                        //hhhhhhhhhhhhhh2 [] because no events in the first place. Should just get from the JSON for OpenSea only. How?
+                                        let tokenHolders = TokenAdaptor(token: token, assetDefinitionStore: assetDefinitionStore).getTokenHolders(forWallet: account, sourceFromEvents: false)
                                         NSLog("xxx tokenHolders: \(tokenHolders) for token: \(token.contract) server: \(token.server)")
 
                                         switch filterValue {
                                         case "${tokenId}":
                                             //hhhhhhh2 hardcoded ID! Need to fetch a list of tokenIds from database and loop? Then in each promise, insert into database?
+                                            NSLog("xxx inject tokenId here")
                                             let tokenId: BigUInt = BigUInt("113246541015140777609414905115468849050300863255299358927480302797592829236733")
-                                            filterValueX = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .uint(tokenId))
+                                            filterValueX = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .uint(tokenId)).flatMap { (filter: $0, textEquivalent: "\(filterName)=\(tokenId)") }
                                         default:
                                             //hhh2 still support substitution. But how to handle type conversions like tokenId?
-                                            filterValueX = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .string(filterValue))
+                                            filterValueX = AssetAttributeValueUsableAsFunctionArguments(assetAttribute: .string(filterValue)).flatMap { (filter: $0, textEquivalent: "\(filterName)=\(filterValue)") }
                                         }
                                         guard let filterValueY = filterValueX else { return nil }
                                         //hhhhhhh2 Should only end up with a few types? specifically BigUInt, BigInt, Data, String, EthereumAddress. So must be mapped to those. Switch by solidity types?
                                         //hhh we have to "cast" it to Data, etc which can then be cast to EventFilterable here. So have to handle this first
                                         //hhh rename
-                                        let filterValue2 = filterValueY.coerce(toArgumentType: parameterType, forFunctionType: .eventFiltering) as? Data
-                                        NSLog("xxx filterValue2 coerced: \(filterValue2)")
+                                        let filterValue2 = filterValueY.filter.coerce(toArgumentType: parameterType, forFunctionType: .eventFiltering) as? Data
+                                        NSLog("xxx filterValue2 coerced: \(filterValue2) with text: \(filterValueY.textEquivalent)")
                                         //hhh2 clean up
                                         if filterValue2 == nil {
                                             return nil
@@ -453,7 +456,7 @@ class EventSource {
                                             NSLog("xxx filterValue3 coerced: \(filterValue3)")
                                             if filterValue3 != nil {
                                                 //hhh forced unwrap
-                                                return [filterValue3!]
+                                                return (filter: [filterValue3!], textEquivalent: filterValueY.textEquivalent)
                                             } else {
                                                 return nil
                                             }
@@ -467,9 +470,9 @@ class EventSource {
                             }
                     NSLog("xxx filterParam: \(filterParam)")
 
-                    //hhh override
-                    let filterParam_old = [(nil as [EventFilterable]?), ([EthereumAddress("0xbbce83173d5c1D122AE64856b4Af0D5AE07Fa362")!] as [EventFilterable])]
-                    let eventFilter = EventFilter(fromBlock: .blockNumber(0), toBlock: .latest, addresses: [EthereumAddress(address: eventOrigin.contract)], parameterFilters: filterParam)
+                    //hhh2 check handling nils correctly, they should be included after we introduced a tuple now
+                    let eventFilter = EventFilter(fromBlock: .blockNumber(0), toBlock: .latest, addresses: [EthereumAddress(address: eventOrigin.contract)], parameterFilters: filterParam.map { $0?.filter })
+                    //hhh server
                     let server = RPCServer(chainID: 1)
 
 
@@ -487,10 +490,43 @@ class EventSource {
                         NSLog("xxx events count: \(result.count)")
                         for each in result {
                             print(each)
+                            //hhh BigInt instead. Matters?
+                            guard let blockNumber = each.eventLog?.blockNumber else { continue }
+                            guard let logIndex = each.eventLog?.logIndex else { continue }
+                            let decodedResult = Dictionary(uniqueKeysWithValues: each.decodedResult.compactMap { key, value -> (String, Any)? in
+                                switch value {
+                                case let address as EthereumAddress:
+                                    NSLog("xxx key: \(key) address")
+                                    return (key, address.address)
+                                case let data as Data:
+                                    NSLog("xxx key: \(key) data")
+                                    return (key, data.hexEncoded)
+                                case let string as String:
+                                    NSLog("xxx key: \(key) string")
+                                    return (key, string)
+                                case let bigUInt as BigUInt:
+                                    NSLog("xxx key: \(key) bigUInt")
+                                    return (key, Int(bigUInt))
+                                default:
+                                    //We only accept known types, otherwise serializing to JSON will crash
+                                    NSLog("xxx key: \(key) default \(type(of: value))")
+                                    return nil
+                                }
+                            })
+                            NSLog("xxx decodedResult: ")
+                            NSLog("xxx \(decodedResult)")
+
+                            guard let json = decodedResult.jsonString else { continue }
+                            //hhhhhhhhhhhh2 filter value inserted should include the tokenId, otherwise, how do we match when reading? In the tuple
+                            //hhhh2 we expect exactly 1 filter. Not so good?
+                            let filterTextEquivalent = filterParam.compactMap({ $0?.textEquivalent }).first
+                            let filterText = filterTextEquivalent ?? "\(eventOrigin.eventFilter.name)=\(eventOrigin.eventFilter.value)"
+                            let eventInstance = EventInstance(server: server, eventName: eventOrigin.eventName, blockNumber: Int(blockNumber), logIndex: Int(logIndex), filter: filterText, json: json)
+                            //hhh2 insert as a batch instead
+                            try! realm.write {
+                                realm.add(eventInstance, update: .all)
+                            }
                         }
-                        //TODO make this consistent like this address has exactly one nameregistered from block a to block b
-                        //if !result.description.contains("rejected") {
-                        //}
                     }.catch { error in
                         NSLog("xxx error with event promise: \(error)")
                     }
