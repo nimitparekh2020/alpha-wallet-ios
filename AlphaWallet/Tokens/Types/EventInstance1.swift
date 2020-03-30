@@ -16,12 +16,25 @@ class EventInstance: Object {
     @objc dynamic var blockNumber: Int = 0
     @objc dynamic var logIndex: Int = 0
     @objc dynamic var filter: String = ""
-    @objc dynamic var json: String = "{}"
+    @objc dynamic var json: String = "{}" {
+        didSet {
+            _data = EventInstance.convertJsonToDictionary(json)
+        }
+    }
 
-    //hhh2 implement
-    //hhhhhhhhhh implement this. parse JSON and cache. Will not be outdated, since the event instance is immutable
     //hhh maybe rename to "parameters" instead of data
-    var data: [String: AssetInternalValue] = .init()
+    //hhh this is needed because Realm objects' properties (`json`) don't fire didSet after the object has been written to the database
+    var _data: [String: AssetInternalValue]?
+    //hhh maybe rename to "parameters" instead of data
+    var data: [String: AssetInternalValue] {
+        if let _data = _data {
+            return _data
+        } else {
+            let value = EventInstance.convertJsonToDictionary(json)
+            _data = value
+            return value
+        }
+    }
 
     convenience init(contract: AlphaWallet.Address = Constants.nullAddress, server: RPCServer, eventName: String, blockNumber: Int, logIndex: Int, filter: String, json: String) {
         self.init()
@@ -34,6 +47,7 @@ class EventInstance: Object {
         self.filter = filter
         //hhhhhhhhh probably have to convert to the correct types, somewhere, before storing
         self.json = json
+        self._data = EventInstance.convertJsonToDictionary(json)
     }
 
     override static func primaryKey() -> String? {
@@ -42,6 +56,30 @@ class EventInstance: Object {
 
     //hhh keep? Do we have `data`?
     override static func ignoredProperties() -> [String] {
-        return ["data"]
+        return ["_data", "data"]
+    }
+
+    //hhh rename
+    private static func convertJsonToDictionary(_ json: String) -> [String: AssetInternalValue] {
+        //hhh is this called when reading from database? Otherwise data isn't set into and we'll always have to make it computed and cache ourselves in `_data`
+        //hhh2 need to convert keys to AssetInternalValue
+        let dict = json.data(using: .utf8).flatMap({ (try? JSONSerialization.jsonObject(with: $0, options: [])) as? [String: Any] }) ?? .init()
+        for (key, value) in dict {
+            NSLog("xxx \(key) = \(value) type: \(type(of: value))")
+        }
+
+        return Dictionary(uniqueKeysWithValues: dict.compactMap { key, value -> (String, AssetInternalValue)? in
+            switch value {
+            case let string as String:
+                return (key, .string(string))
+            case let number as NSNumber:
+                //hhh2 convert to BigInt or BigUInt maybe? Might be floating point also
+                return (key, .string(String(describing: number)))
+            default:
+                //hhh2 good or not? Maybe drop this key-value pair instead?
+                //return (key, .string(String(value)))
+                return nil
+            }
+        })
     }
 }
